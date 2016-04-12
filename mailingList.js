@@ -4,9 +4,10 @@
 
 //variables
     
-var students = []
-var professors = []
-var questions = []
+var students = [];
+var professors = [];
+var questions = [];
+var currentQuestionID = 0;
     
 var mailingListApp = require('express')();
 var server = require('http').Server(mailingListApp);
@@ -15,37 +16,23 @@ var constants = require("./constants");
 
 
 io.on('connection', function(socket){
-    console.log('new connection!')
-
-    //handshake
-    socket.on(constants.HANDSHAKE, function (name, description, mail) {
-        console.log('handshaking..')
-        if (alreadyExist(description, mail)){
-            socket.emit(constants.RESULT,'error: mail is already taken');
-        }else{
-            createUser(name, description, mail)
-            socket.emit(constants.RESULT,'');
-        }
-    });
-
-    //asking
-    socket.on(constants.ASK, function (from, msg) {
-        console.log('student', '['+from+']', ' esta preguntando ', '['+msg+']');
-    });
+    console.log('[MainlingList] new connection!');
+    //listeners
+    handshake(socket);
+    asking(socket);
+    
+    nextQuestion(socket);
+    writting(socket);
+    answer(socket)
 
 });
 
 function alreadyExist(description, mail) {
-    if (description=='student'){
-        console.log('student')
-        return exist(students, mail)
-    }else{
-        return exist(professors, mail)
-    }
+    return description == 'student' ? exist(students, mail) : exist(professors, mail);
 }
 
 function exist(users, mail) {
-    for (i=0;i<users.length;i++){
+    for (var i=0;i<users.length;i++){
         if (users[i].mail == mail){
             return true
         }
@@ -53,59 +40,75 @@ function exist(users, mail) {
     return false
 }
 
-function createUser(name, description, mail) {
+function addUser(name, description, mail) {
     var user = {
         name:name,
         description:description,
         mail:mail
-    }
-    console.log('create user')
-    description=='student' ? (students.push(user)):(professors.push(user))
+    };
+    description=='student' ? (students.push(user)):(professors.push(user));
+    console.log('[MainlingList] add '+description+' with mail '+mail);
 }
+
+function addQuestion(from, msg) {
+    var question = {
+        id: currentQuestionID++,
+        mail: from,
+        question: msg
+    };
+    questions.push(question);
+    console.log('[MainlingList] '+question.mail+ ' asked '+question.question+' ID: '+question.id+'\r\n');
+    return question
+}
+
+process.on('SIGINT', function() {
+    console.log("[MainlingList] Disconnect all users..");
+    io.emit('user disconnected');
+    process.exit();
+});
 
 //listening
 server.listen(constants.PORT, function(){
-    console.log('[MailingList] listening in:'+constants.PORT);
+    console.log('[MainlingList] listening in:'+constants.PORT +'\r\n');
 });
 
+//*******************student*******************//
+function handshake(socket) {
+    socket.on(constants.HANDSHAKE, function (name, description, mail) {
+        if (alreadyExist(description, mail)){
+            console.log('[MainlingList] fail', description,mail);
+            socket.emit(constants.RESULT,'error: mail is already taken');
+        }else{
+            addUser(name, description, mail);
+            socket.emit(constants.RESULT,'');
+        }
+    });
+}
 
+function asking(socket) {
+    socket.on(constants.ASK, function (from, msg) {
+        var question = addQuestion(from, msg);
+        socket.broadcast.emit(constants.ASK, question);
+    });
+}
 
+//*******************professor*******************//
 
+function nextQuestion(socket) {
+    socket.on(constants.GET_QUESTION, function () {
+        var question = questions.shift();
+        socket.emit(constants.RECEIVED_QUESTION, question);
+    });
+}
 
+function writting(socket) {
+    socket.on(constants.WRITING, function (msg, from) {
+        socket.broadcast.emit(constants.WRITING, msg, from);
+    });
+}
 
-
-// mailingListApp.get('/preguntar', function (req, res) {
-//     // var pregunta = {
-//     //     titulo: req.body.titulo,
-//     //     mensaje: req.body.mensaje,
-//     //     alumno: req.body.sender,
-//     //     id: questions.length
-//     // };
-//
-//     console.log('dsa');
-//     //questions.push(pregunta);
-//
-//     //if (students.indexOf(req.body.sender)===-1){
-//         //students.push(req.body.sender);
-//     //}
-//
-//     //notificar(pregunta, students.concat(proffesors));
-//
-//     //res.send('[Server] preguntar');
-// });
-
-
-
-
-//
-// io.on('connect', function(){
-//     console.log('conecneaa')
-// });
-//
-// io.on('event', function(data){
-//
-// });
-//
-// io.on('disconnect', function(){
-//
-// });
+function answer(socket) {
+    socket.on(constants.SEND_ANSWER, function (answer) {
+        socket.broadcast.emit(constants.ANSWER, answer);
+    });
+}

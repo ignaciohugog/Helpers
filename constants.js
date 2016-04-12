@@ -11,9 +11,20 @@ function define(name, value) {
 
 //this is the server port 
 define("PORT", 8084);
-define("ASK", 'ask');
-define("ANSWER", 'answer');
+
+//user
 define("HANDSHAKE", 'handshake');
 define("RESULT", "result");
+
+//student
+define("ASK", 'ask');
+
+//professor
+define("ANSWER", 'answer');
+define("SEND_ANSWER", 'send_answer');
+define("GET_QUESTION", "nextQuestion");
+define("RECEIVED_QUESTION", "receivedQuestion");
+define("WRITING", "writing");
+
 
 

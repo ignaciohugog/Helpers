@@ -5,68 +5,44 @@
 var io = require('socket.io-client');
 var constants = require("./constants");
 var prompt = require('prompt');
+var User = require("./user");
 
-//student's variables
-var description = 'student'
-var name = ""
-var mail = ""
-var socket
+prompt.start();
 
-promptMail()
+prompt.get(['mail'], function (err, result) {
+    if (err || !result.mail) { return User.prototype.onErr(); }
+    this.mail = result.mail;
+    setupConnection()
+});
 
 
-function createConnection() {
-    //create socket
-    socket = io.connect('http://localhost:'+constants.PORT, {reconnect: true});
-
-    //check if mail is already taken
-    handshake()
-    
-    //listeners
+function setupConnection() {
+    this.description = 'student';
+    this.socket = io.connect('http://localhost:'+constants.PORT, {reconnect: true});
+    User.prototype.handshake(this.socket, this.description, this.mail);
+    User.prototype.listeners(this.socket);
     setupListeners()
 }
 
 function setupListeners() {
-    //login result
+    login();
+}
+
+function login() {
     socket.on(constants.RESULT, function (error) {
         if (error){
-            console.log(error)
-            promptMail()
+            console.log(error);
+            process.exit();
         }else{
-            console.log('success!!!!')
-            //start to ask
+            console.log('[Student] success!!!!\r\n');
             ask()
         }
     });
-
-    socket.on(constants.ASK, function(ask) {
-        console.log('Students asking: ', JSON.stringify(ask))
-    });
-
-    socket.on(constants.ANSWER, function(answer) {
-        console.log('Professors answering: ', JSON.stringify(answer));
-    });
-}
-
-function promptMail() {
-    prompt.start();
-    prompt.get(['mail'], function (err, result) {
-        if (err || !result.mail) { return onErr(); }
-        mail = result.mail
-        createConnection()
-    });
-}
-
-function onErr() {
-    console.log('name required!');
-    return 1;
-}
-
-function handshake() {
-    socket.emit(constants.HANDSHAKE, name, description, mail);
-    console.log('handshaking..')
 }
 
 function ask() {
-    socket.emit(constants.ASK, name, "hay alguien ahi?");
+    console.log('asking..');
+    setInterval(function(){
+        socket.emit(constants.ASK, mail, "anyone there!?");
+    }, 3000);
 }
