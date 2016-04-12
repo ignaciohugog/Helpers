@@ -43,6 +43,7 @@ function login() {
 }
 
 function getQuestion(){
+    console.log('asking....')
     this.socket.emit(constants.GET_QUESTION);
 }
 
@@ -57,7 +58,9 @@ function receivedQuestion(){
         if (question){
             answer(question)
         }else{
-            getQuestion()
+            setTimeout(function () {
+                getQuestion()
+            },5000);
         }
     });
 }
